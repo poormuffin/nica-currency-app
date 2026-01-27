@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+    <title>Mexico Currency</title>
+    
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2454/2454282.png">
+    <link rel="icon" href="data:,">
+    <meta name="apple-mobile-web-app-title" content="MexiMoney">
+
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --primary: #28a745; /* Changed to green for Mexico theme */
+            --text: #333;
+        }
+
+        html, body {
+            height: 100svh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; 
+            background-color: var(--bg-color);
+            font-family: -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 92%;
+            max-width: 340px;
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .input-group {
+            margin-bottom: 10px;
+        }
+
+        label {
+            display: block;
+            font-weight: 700;
+            margin-bottom: 4px;
+            color: var(--text);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            font-size: 1.2rem;
+            border: 2px solid #e1e4e8;
+            border-radius: 10px;
+            box-sizing: border-box;
+            background: #fafbfc;
+            touch-action: manipulation;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            outline: none;
+            background: #fff;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 0.65rem;
+            color: #aaa;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="input-group">
+        <label>🇲🇽 MXN - Peso</label>
+        <input type="number" inputmode="decimal" id="mxn" placeholder="0.00" oninput="convert('mxn')" onclick="clearAll()">
+    </div>
+    
+    <div class="input-group">
+        <label>🇨🇦 CAD - Canadian</label>
+        <input type="number" inputmode="decimal" id="cad" placeholder="0.00" oninput="convert('cad')" onclick="clearAll()">
+    </div>    
+    
+    <div class="input-group">
+        <label>🇺🇸 USD - US Dollar</label>
+        <input type="number" inputmode="decimal" id="usd" placeholder="0.00" oninput="convert('usd')" onclick="clearAll()">
+    </div>
+    
+    <div id="status" class="status">Connecting...</div>
+</div>
+
+<script>
+    // Initial Fallback Rates (Jan 2026 approx)
+    let rates = { CAD: 1.37, MXN: 17.34 };
+
+    async function fetchRates() {
+        try {
+            const response = await fetch('https://open.er-api.com/v6/latest/USD?nocache=' + new Date().getTime());
+            const data = await response.json();
+            if (data && data.rates) {
+                rates.CAD = data.rates.CAD;
+                rates.MXN = data.rates.MXN;
+                document.getElementById('status').innerText = "Last Sync: " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                
+                const activeId = document.activeElement.id;
+                if (activeId && document.getElementById(activeId).value !== "") {
+                    convert(activeId);
+                }
+            }
+        } catch (e) {
+            document.getElementById('status').innerText = "Offline Mode";
+        }
+    }
+
+    fetchRates();
+    setInterval(fetchRates, 60000);
+
+    function convert(sourceId) {
+        const val = parseFloat(document.getElementById(sourceId).value);
+        if (isNaN(val)) return;
+
+        let usdBase;
+        // Convert input to a common USD base first
+        if (sourceId === 'usd') usdBase = val;
+        else if (sourceId === 'cad') usdBase = val / rates.CAD;
+        else if (sourceId === 'mxn') usdBase = val / rates.MXN;
+
+        // Update all fields based on that USD base
+        if (sourceId !== 'usd') document.getElementById('usd').value = usdBase.toFixed(2);
+        if (sourceId !== 'cad') document.getElementById('cad').value = (usdBase * rates.CAD).toFixed(2);
+        if (sourceId !== 'mxn') document.getElementById('mxn').value = (usdBase * rates.MXN).toFixed(2);
+    }
+
+    function clearAll() {
+        document.querySelectorAll('input').forEach(input => input.value = '');
+    }
+</script>
+
+</body>
+</html>
