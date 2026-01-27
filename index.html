@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
     <title>Nica Currency</title>
-    
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2454/2454282.png">
     
     <style>
@@ -15,35 +14,31 @@
             --text: #333;
         }
 
-        /* Prevents the whole page from bouncing or scrolling */
+        /* Using svh (Small Viewport Height) to ensure it fits with browser bars */
         html, body {
-            height: 100%;
+            height: 100svh;
             margin: 0;
             padding: 0;
             overflow: hidden; 
             background-color: var(--bg-color);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
-
-        /* Flexbox centers the content in the available space */
-        body {
+            font-family: -apple-system, sans-serif;
             display: flex;
             flex-direction: column;
-            justify-content: center; 
+            justify-content: center;
             align-items: center;
         }
 
         .container {
-            width: 90%;
-            max-width: 400px;
+            width: 92%;
+            max-width: 360px; /* Narrower container for a tighter look */
             background: var(--card-bg);
-            padding: 25px;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 15px; /* Reduced internal padding */
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
 
         .input-group {
-            margin-bottom: 20px;
+            margin-bottom: 12px; /* Reduced gap between rows */
         }
 
         .input-group:last-child {
@@ -53,30 +48,22 @@
         label {
             display: block;
             font-weight: 700;
-            margin-bottom: 8px;
+            margin-bottom: 4px; /* Tighter label spacing */
             color: var(--text);
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
 
         input {
             width: 100%;
-            padding: 16px;
-            font-size: 1.5rem; /* Larger text for easier reading */
+            padding: 12px; /* Smaller padding inside boxes */
+            font-size: 1.2rem; /* Balanced font size */
             border: 2px solid #e1e4e8;
-            border-radius: 12px;
+            border-radius: 10px;
             box-sizing: border-box;
             background: #fafbfc;
-            transition: border-color 0.2s;
-            /* Ensures numeric keyboard on Android */
-            -moz-appearance: textfield;
-        }
-
-        input::-webkit-outer-spin-button,
-        input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
+            /* Prevents weird zooming on focus */
+            touch-action: manipulation;
         }
 
         input:focus {
@@ -86,8 +73,8 @@
         }
 
         .status {
-            margin-top: 15px;
-            font-size: 0.75rem;
+            margin-top: 10px;
+            font-size: 0.7rem;
             color: #999;
             text-align: center;
         }
@@ -97,17 +84,17 @@
 
 <div class="container">
     <div class="input-group">
-        <label>🇺🇸 USD - Dollars</label>
+        <label>🇺🇸 USD</label>
         <input type="number" inputmode="decimal" id="usd" placeholder="0.00" oninput="convert('usd')" onclick="clearAll()">
     </div>
 
     <div class="input-group">
-        <label>🇨🇦 CAD - Canadian</label>
+        <label>🇨🇦 CAD</label>
         <input type="number" inputmode="decimal" id="cad" placeholder="0.00" oninput="convert('cad')" onclick="clearAll()">
     </div>
 
     <div class="input-group">
-        <label>🇳🇮 NIO - Cordoba</label>
+        <label>🇳🇮 NIO</label>
         <input type="number" inputmode="decimal" id="nio" placeholder="0.00" oninput="convert('nio')" onclick="clearAll()">
     </div>
     
@@ -115,7 +102,6 @@
 </div>
 
 <script>
-    // Initial rates (will be updated by API)
     let rates = { CAD: 1.37, NIO: 36.70 };
 
     async function fetchRates() {
@@ -125,10 +111,10 @@
             if (data && data.rates) {
                 rates.CAD = data.rates.CAD;
                 rates.NIO = data.rates.NIO;
-                document.getElementById('status').innerText = "Rates updated: " + new Date().toLocaleTimeString();
+                document.getElementById('status').innerText = "Updated: " + new Date().toLocaleTimeString();
             }
         } catch (e) {
-            document.getElementById('status').innerText = "Offline Mode (Using saved rates)";
+            document.getElementById('status').innerText = "Offline Mode";
         }
     }
 
