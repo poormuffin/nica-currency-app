@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+    <title>Universal Converter</title>
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2454/2454282.png">
+    <link rel="icon" href="data:,">
+    
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --primary: #007bff;
+            --text: #333;
+            --border: #e1e4e8;
+        }
+
+        html, body {
+            height: 100svh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 92%;
+            max-width: 360px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            box-sizing: border-box;
+        }
+
+        .input-group {
+            margin-bottom: 12px;
+        }
+
+        .input-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: var(--text);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .label-type {
+            color: var(--primary);
+            font-size: 0.65rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px;
+            font-size: 1.4rem;
+            font-weight: 500;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            box-sizing: border-box;
+            background: #fafbfc;
+            color: var(--text);
+            transition: all 0.2s ease;
+            touch-action: manipulation;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            background: #fff;
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(0,123,255,0.1);
+        }
+
+        .status {
+            margin-top: 15px;
+            font-size: 0.7rem;
+            color: #888;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        /* Responsive tweak for small phones */
+        @media (max-height: 600px) {
+            .container { padding: 15px; }
+            input { padding: 10px; font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="app-fields">
+        </div>
+    <div id="status" class="status">Loading data...</div>
+</div>
+
+<script src="currencies.js"></script>
+
+<script>
+    let rates = {};
+    let activeCurrencies = []; // Format: { code, type, symbol, flag }
+
+    async function init() {
+        try {
+            // 1. Get Visiting Currency (based on IP)
+            const geoRes = await fetch('https://ipapi.co/json/');
+            const geoData = await geoRes.json();
+            const visitingCode = countryToCurr[geoData.country_code] || 'USD';
+
+            // 2. Get Home Currency (based on Browser Language)
+            const userLang = navigator.language || 'en-US';
+            const homeCountryCode = userLang.split('-')[1] || 'US';
+            const homeCode = countryToCurr[homeCountryCode.toUpperCase()] || 'USD';
+
+            // 3. Define Priority List (Visiting > Home > USD)
+            const priority = [
+                { code: visitingCode, type: 'Visiting' },
+                { code: homeCode, type: 'Home' },
+                { code: 'USD', type: 'Global' }
+            ];
+
+            // 4. Filter duplicates (e.g., if Home is USD)
+            const seen = new Set();
+            activeCurrencies = priority.filter(item => {
+                if (seen.has(item.code)) return false;
+                seen.add(item.code);
+                return true;
+            });
+
+            renderUI();
+            await updateExchangeRates();
+            
+            // Update rates every minute
+            setInterval(updateExchangeRates, 60000);
+
+        } catch (error) {
+            console.error(error);
+            document.getElementById('status').innerText = "Connection Error";
+        }
+    }
+
+    function renderUI() {
+        const wrapper = document.getElementById('app-fields');
+        wrapper.innerHTML = activeCurrencies.map(curr => {
+            const flag = currFlags[curr.code] || '💰';
+            const symbol = currSymbols[curr.code] || '';
+            const label = `${flag} ${curr.code} (${symbol})`;
+            
+            return `
+                <div class="input-group">
+                    <label>
+                        <span>${label}</span>
+                        <span class="label-type">${curr.type}</span>
+                    </label>
+                    <input type="number" 
+                           inputmode="decimal" 
+                           id="${curr.code.toLowerCase()}" 
+                           placeholder="0.00" 
+                           oninput="doConvert('${curr.code.toLowerCase()}')" 
+                           onclick="this.select()">
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function updateExchangeRates() {
+        try {
+            const res = await fetch('https://open.er-api.com/v6/latest/USD');
+            const data = await res.json();
+            rates = data.rates;
+            
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('status').innerText = `Synced: ${timeStr} • ${rates.NIO ? 'Online' : 'Cache'}`;
+            
+            // Refresh values if an input is already filled
+            const activeInput = document.activeElement;
+            if (activeInput && activeInput.value) {
+                doConvert(activeInput.id);
+            }
+        } catch (e) {
+            document.getElementById('status').innerText = "Offline Mode";
+        }
+    }
+
+    function doConvert(sourceId) {
+        const inputEl = document.getElementById(sourceId);
+        const val = parseFloat(inputEl.value);
+        
+        if (isNaN(val)) {
+            clearOthers(sourceId);
+            return;
+        }
+
+        const sourceCode = sourceId.toUpperCase();
+        const usdBase = sourceCode === 'USD' ? val : val / rates[sourceCode];
+
+        activeCurrencies.forEach(curr => {
+            const targetId = curr.code.toLowerCase();
+            if (targetId !== sourceId) {
+                const targetInput = document.getElementById(targetId);
+                const converted = usdBase * rates[curr.code];
+                targetInput.value = converted.toFixed(2);
+            }
+        });
+    }
+
+    function clearOthers(keepId) {
+        activeCurrencies.forEach(curr => {
+            const id = curr.code.toLowerCase();
+            if (id !== keepId) document.getElementById(id).value = '';
+        });
+    }
+
+    // Start the app
+    init();
+</script>
+
+</body>
+</html>
+
