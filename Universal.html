@@ -37,7 +37,6 @@
             border-radius: 20px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.08);
             box-sizing: border-box;
-            position: relative;
         }
 
         .input-group {
@@ -101,11 +100,6 @@
             font-weight: 700;
             cursor: pointer;
         }
-
-        @media (max-height: 600px) {
-            .container { padding: 15px; }
-            input { padding: 10px; font-size: 1.2rem; }
-        }
     </style>
 </head>
 <body>
@@ -125,9 +119,23 @@
     let activeCurrencies = [];
     let visitingCountryCode = null;
 
+    // Countries where USD is commonly accepted or used alongside local currency
+    const acceptsUSD = [
+        "NI", // Nicaragua
+        "PA", // Panama
+        "CR", // Costa Rica
+        "SV", // El Salvador
+        "KH", // Cambodia
+        "VN", // Vietnam (Tourist areas)
+        "BZ", // Belize
+        "BS", // Bahamas
+        "EC", // Ecuador
+        "ZW", // Zimbabwe
+        "LB"  // Lebanon
+    ];
+
     async function init() {
         try {
-            // Only auto-detect if we haven't manually set it
             if (!visitingCountryCode) {
                 const geoRes = await fetch('https://ipapi.co/json/');
                 const geoData = await geoRes.json();
@@ -139,12 +147,26 @@
             const homeCountryCode = userLang.split('-')[1] || 'US';
             const homeCode = countryToCurr[homeCountryCode.toUpperCase()] || 'USD';
 
-            const priority = [
+            // Build Priority List
+            let priority = [
                 { code: visitingCode, type: 'Visiting' },
-                { code: homeCode, type: 'Home' },
-                { code: 'USD', type: 'Global' }
+                { code: homeCode, type: 'Home' }
             ];
 
+            // Logical Check: Should we show USD?
+            const isVisitingUS = (visitingCode === 'USD');
+            const isHomeUS = (homeCode === 'USD');
+            const isDollarized = acceptsUSD.includes(visitingCountryCode);
+
+            if (isDollarized && !isVisitingUS && !isHomeUS) {
+                priority.push({ code: 'USD', type: 'Accepted' });
+            } else if (!isVisitingUS && !isHomeUS) {
+                // USD is not local, not home, and not commonly accepted - we skip it.
+            } else if (isVisitingUS || isHomeUS) {
+                // USD is already in the list via Visiting or Home
+            }
+
+            // Filter unique codes only
             const seen = new Set();
             activeCurrencies = priority.filter(item => {
                 if (seen.has(item.code)) return false;
@@ -192,7 +214,8 @@
     }
 
     function doConvert(sourceId) {
-        const val = parseFloat(document.getElementById(sourceId).value);
+        const inputEl = document.getElementById(sourceId);
+        const val = parseFloat(inputEl.value);
         if (isNaN(val)) {
             activeCurrencies.forEach(c => { if(c.code.toLowerCase() !== sourceId) document.getElementById(c.code.toLowerCase()).value = ''; });
             return;
@@ -207,10 +230,10 @@
     }
 
     function manualOverride() {
-        const code = prompt("Enter 2-letter Country Code (e.g., NI for Nicaragua, MX for Mexico):");
+        const code = prompt("Enter 2-letter Country Code (e.g., NI, MX, RU):");
         if (code && code.length === 2) {
             visitingCountryCode = code.toUpperCase();
-            init(); // Re-initialize UI with new country
+            init();
         }
     }
 
