@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Magnifier</title>
+  <style>
+    html, body { margin:0; height:100%; background:#000; color:#fff; font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    .wrap { position:fixed; inset:0; }
+    #stage { position:fixed; inset:0; overflow:hidden; background:#000; }
+    video {
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      transform-origin:center center;
+      background:#000;
+      /* make digital zoom look less mushy */
+      filter: contrast(1.05) saturate(1.05) brightness(1.02);
+    }
+    .controls {
+      position:fixed;
+      left:0; right:0; bottom:0;
+      padding:12px 14px calc(12px + env(safe-area-inset-bottom));
+      display:flex;
+      gap:10px;
+      justify-content:center;
+      background:linear-gradient(to top, rgba(0,0,0,.65), rgba(0,0,0,0));
+      user-select:none;
+    }
+    button {
+      font-size:18px;
+      padding:10px 16px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.35);
+      background:rgba(0,0,0,.45);
+      color:#fff;
+    }
+    button.active { border-color:#fff; background:rgba(255,255,255,.18); }
+
+    .overlay {
+      position:fixed; inset:0;
+      display:flex; align-items:center; justify-content:center;
+      flex-direction:column; gap:12px;
+      background:rgba(0,0,0,.88);
+      padding:24px; text-align:center;
+    }
+    .hint { opacity:.85; font-size:14px; max-width:36ch; line-height:1.35; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="stage">
+      <video id="v" playsinline autoplay muted></video>
+    </div>
+
+    <div class="controls">
+      <button data-z="2">2×</button>
+      <button data-z="3">3×</button>
+      <button data-z="4">4×</button>
+    </div>
+
+    <div id="overlay" class="overlay">
+      <button id="startBtn" style="font-size:20px;padding:12px 18px;">Start camera</button>
+      <div class="hint">Firefox will require a tap to start the camera.</div>
+      <div id="msg" class="hint"></div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const video = document.getElementById('v');
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('startBtn');
+  const msg = document.getElementById('msg');
+  const buttons = [...document.querySelectorAll('button[data-z]')];
+
+  let stream = null;
+
+  function setActive(z) {
+    buttons.forEach(b => b.classList.toggle('active', Number(b.dataset.z) === z));
+  }
+
+  function applyDigitalZoom(z) {
+    // Digital zoom via CSS scale. Stable across Firefox.
+    video.style.transform = `scale(${z})`;
+  }
+
+  async function startCamera() {
+    msg.textContent = "";
+    overlay.style.display = "none";
+
+    try {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" } // rear cam
+        },
+        audio: false
+      });
+
+      video.srcObject = stream;
+
+      // Default zoom
+      applyDigitalZoom(2);
+      setActive(2);
+    } catch (e) {
+      overlay.style.display = "flex";
+      msg.textContent = "Camera error: " + (e?.message || e);
+    }
+  }
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const z = Number(btn.dataset.z);
+      applyDigitalZoom(z);
+      setActive(z);
+    });
+  });
+
+  startBtn.addEventListener('click', startCamera);
+})();
+</script>
+</body>
+</html>
