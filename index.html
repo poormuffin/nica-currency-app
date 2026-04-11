@@ -118,6 +118,7 @@
     let rates = {};
     let activeCurrencies = [];
     let visitingCountryCode = null;
+    let updateInterval = null;
 
     // Countries where USD is commonly accepted or used alongside local currency
     const acceptsUSD = [
@@ -137,7 +138,7 @@
     async function init() {
         try {
             if (!visitingCountryCode) {
-                const geoRes = await fetch('https://ipapi.co/json/');
+                const geoRes = await fetch('https://rough-star-983a.sky-02a.workers.dev/');
                 const geoData = await geoRes.json();
                 visitingCountryCode = geoData.country_code;
             }
@@ -176,10 +177,35 @@
 
             renderUI();
             await updateExchangeRates();
-            setInterval(updateExchangeRates, 60000);
+            if (updateInterval) clearInterval(updateInterval);
+            updateInterval = setInterval(updateExchangeRates, 60000);
 
         } catch (error) {
-            document.getElementById('status').innerText = "Network Error";
+            if (!visitingCountryCode) {
+                visitingCountryCode = 'US'; // Fallback to US
+            }
+            // Retry with fallback
+            const visitingCode = countryToCurr[visitingCountryCode] || 'USD';
+            const userLang = navigator.language || 'en-US';
+            const homeCountryCode = userLang.split('-')[1] || 'US';
+            const homeCode = countryToCurr[homeCountryCode.toUpperCase()] || 'USD';
+
+            activeCurrencies = [
+                { code: visitingCode, type: 'Visiting' },
+                { code: homeCode, type: 'Home' }
+            ];
+
+            const seen = new Set();
+            activeCurrencies = activeCurrencies.filter(item => {
+                if (seen.has(item.code)) return false;
+                seen.add(item.code);
+                return true;
+            });
+
+            renderUI();
+            await updateExchangeRates();
+            if (updateInterval) clearInterval(updateInterval);
+            updateInterval = setInterval(updateExchangeRates, 60000);
         }
     }
 
