@@ -256,11 +256,36 @@
     }
 
     function manualOverride() {
-        const code = prompt("Enter 2-letter Country Code (e.g., NI, MX, RU):");
-        if (code && code.length === 2) {
-            visitingCountryCode = code.toUpperCase();
-            init();
+        const input = prompt("Enter country name (e.g., Guatemala, Spain) or 2-letter code (e.g., GT, ES):");
+        if (!input) return;
+
+        let code = input.toUpperCase().trim();
+
+        // If it's 2 characters, treat as country code
+        if (code.length === 2) {
+            if (countryToCurr[code]) {
+                visitingCountryCode = code;
+                init();
+            } else {
+                alert("Invalid country code. Try a country name instead.");
+            }
+            return;
         }
+
+        // Search for country name
+        const searchName = input.toLowerCase().trim();
+        const displayNames = new Intl.DisplayNames(['en'], { type: 'region' });
+
+        for (const [countryCode, currency] of Object.entries(countryToCurr)) {
+            const countryName = displayNames.of(countryCode).toLowerCase();
+            if (countryName.includes(searchName) || searchName.includes(countryName.split(',')[0])) {
+                visitingCountryCode = countryCode;
+                init();
+                return;
+            }
+        }
+
+        alert("Country not found. Try a different name or use a 2-letter code.");
     }
 
     init();
